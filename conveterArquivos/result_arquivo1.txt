@@ -1,0 +1,203 @@
+﻿Preprint
+Created with an evaluation copy of Aspose.Words. To remove all limitations, you can use Free Temporary License https://products.aspose.com/words/temporary-license/
+∗Work done while visiting UC Berkeley. †Corresponding author.
+UNIDRIVE: TOWARDS UNIVERSAL DRIVING PERCEPTION ACROSS CAMERA CONFIGURATIONS
+Ye Li1∗ Wenzhao Zheng2† Xiaonan Huang
+ Kurt Keutzer2 1University of Michigan, Ann Arbor 2University of California, Berkeley https://wzzheng.net/UniDrive
+ABSTRACT
+Vision-centric autonomous driving has demonstrated excellent performance with economical sensors. As the fundamental step, 3D perception aims to infer 3D information from 2D images based on 3D-2D projection. This makes driving perception models susceptible to sensor configuration(e.g., camera intrinsics and extrinsics) variations. However, generalizing across camera configurations is im- portant for deploying autonomous driving models on different car models. In this paper, we present UniDrive, a novel framework for vision-centric autonomous driving to achieve universal perception across camera configurations. We deploy a set of unified virtual cameras and propose a ground-aware projection method to effectively transform the original images into these unified virtual views. We further propose a virtual configuration optimization method by minimizing the expected projection error between original cameras and virtual cameras. The pro- posed virtual camera projection can be applied to existing 3D perception methods as a plug-and-play module to mitigate the challenges posed by camera parameter variability, resulting in more adaptable and reliable driving perception models. To evaluate the effectiveness of our framework, we collect a dataset on Carla by driv- ing the same routes while only modifying the camera configurations. Experimen- tal results demonstrate that our method trained on one specific camera configura- tioncangeneralizetovaryingconfigurationswithminorperformancedegradation. Code and benchmark: https://github.com/ywyeli/UniDrive.
+1	 INTRODUCTION
+Vision-centric autonomous driving has gained significant traction (Wang et al., 2023a) due to its ability to deliver high-performance perception using economical sensors like cameras. At the core of this approach lies 3D perception (Liu et al., 2022), which reconstructs 3D spatial information from 2D images via 2D-3D lift transform (Philion & Fidler, 2020). This transform is critical for enabling vehicles to understand their environment, detect objects, and navigate safely. Previous works (Huang et al., 2021; Xie et al., 2022; Reading et al., 2021; Li et al., 2022; Zhou & Krahenb¨ uhl¨ , 2022; Zeng et al., 2024; Lu et al., 2022; Huang & Huang, 2022; Liu et al., 2023a) have achieved remarkable 3D perception ability by utilizing Bird’s Eye View (BEV) representations to process 2D-3D lift. Recently, many vision-based 3D occupancy prediction methods (Huang et al., 2023; Wei et al., 2023; Huang et al., 2024a;b; Zhao et al., 2024) further improved the understanding of dynamic and cluttered driving scenes, pushing the boundaries of the research domain. As a result, vision-based systems have become one of the primary solutions for scalable autonomous driving.
+Despite the exciting development of the state-of-the-art vision-based autonomous driving (Liu et al., 2024; Zong et al., 2023; Zheng et al., 2024b;a; Hu et al., 2023; Jiang et al., 2023a), a critical limi- tation still remains: the sensitivity of these models to variations in camera configurations,including intrinsicsandextrinsics. Autonomousdrivingmodelstypicallyrelyonwell-calibratedsensorsetups, and even slight deviations in camera parameters across different vehicles or platforms can signifi- cantly degrade performance (Wang et al., 2023b). As illustrated in Figure 1, this lack of robustness to sensor variability makes it challenging to transfer perception models between different vehicle  
+(a) Deploy on same camera configurations: Succeed! (b) Deploy on different camera configurations: Fail! Figure 1: Comparison of deploying perception models on the same and distinct configurations.
+platforms without extensive retraining or manual adjustment. This variation necessitates training separate models for each vehicle, which consumes a significantamount of computational resources. Thus, achievinggeneralizationacrosscameraconfigurationsisessentialforthepracticaldeployment of vision-centric autonomous driving.
+In this paper, we address two key questions surrounding generalizable driving perception: 1) How can we construct a unified framework that enables perception models to generalize across different multi-camera parameters? 2) How can we further optimize the generalization of perception models to ensure robust performance across varying multi-camera configurations?
+To achieve this, we introduce UniDrive, a novel framework designed to address the challenge of generalizing perception models across multi-camera configurations. This framework deploys a set of unifiedvirtual camera spaces and leverages a ground-aware projection method to transform origi- nal camera images into these unifiedvirtual views. Additionally, we propose a virtual configuration optimization strategy that minimizes the expected projection error between the original and vir- tual cameras, enabling consistent 3D perception across diverse setups. Our framework serves as a plug-and-play module for existing 3D perception methods, improving their robustness to camera parameter variability. We validate our framework in CARLA by training and testing models on different camera configurations,demonstrating that our approach significantlyreduces performance degradation while maintaining adaptability across diverse sensor setups. To summarize, we make the following key contributions in this paper:
+• To the best of our knowledge, UniDrive presents the first comprehensive framework designed to generalize vision-centric 3D perception models across diverse camera configurations.
+• We introduce a novel strategy that transforms images into a unifiedvirtual camera space, enhanc- ing robustness to camera parameter variations.
+• We propose a virtual configurationoptimization strategy that minimizes projection error, improv- ing model generalization with minimal performance degradation.
+• We contribute a systematic data generation platform along with a 160,000 frames multi-camera dataset, and benchmark evaluating perception models across varying camera configurations.
+2	 RELATED WORK
+Vision-based 3D Detection. The development of camera-only 3D perception has gained great momentum recently. Early works such as FCOS3D (Wang et al., 2021), which extended the 2D FCOS detector (Tian et al., 2020) by adding 3D object regression branches, paved the way for improvements in depth estimation via probabilistic modeling (Wang et al., 2022a; Chen et al., 2022a). Later methods like DETR3D (Wang et al., 2022c), PETR (Liu et al., 2022), and Graph- DETR3D (Chen et al., 2022b) applied transformer-based architectures with learnable object queries in 3D space, drawing from the foundations of DETR (Zhu et al., 2021; Wang et al., 2022b), by- passing the limitations of perspective-based detection. Recent works utilize bird’s-eye view (BEV) for better 3D understanding. BEVDet (Huang et al., 2021) and M²BEV (Xie et al., 2022) effec- tively extended the Lift-Splat-Shoot (LSS) framework (Philion & Fidler, 2020) for 3D object de- tection. CaDDN (Reading et al., 2021) introduced explicit depth supervision in the BEV trans- formation to improve depth estimation. In addition, BEVFormer (Li et al., 2022), CVT (Zhou & Krahenb¨ uhl¨ , 2022), and Ego3RT (Lu et al., 2022) explored multi-head attention mechanisms for view transformation, demonstrating further improvements in consistency. To further enhance accu- racy, BEVDet4D (Huang & Huang, 2022), BEVFormer (Li et al., 2022), and PETRv2 (Liu et al., 2023a)leveragedtemporalcues inmulti-cameraobjectdetection, showingsignificantimprovements over single-frame methods.
+Cross Domain Perception. The cross-camera configurations problem proposed in this paper lies in the area of cross-domain perception. Domain generalization or adaptation is to enhance model performance on varying domains without re-training. For 2D perception, numerous cross-domain methods, such as feature distribution alignment and pseudo-labeling (Muandet et al., 2013; Li et al., 2018; Dou et al., 2019; Facil et al., 2019; Chen et al., 2018; Xu et al., 2020; He & Zhang, 2020; Zhao et al., 2020), have primarily addressed domain shifts caused by environmental factors like rain or low light. Recent 3D driving perception works (Hao et al., 2024; Peng et al., 2023) focus on transfering the models trained on clean environment or perfect sensor situations to corrupted sensor and noisy environments, leading to several benchmarks and methods. Cross camera configuration is a relatively new topic in this area. While some works (Wang et al., 2023b) find that the model’s overfitting to camera parameters can lead to degrade performance because the models learn the fixed observation perspectives, the driving perception across camera parameters has seldom been systematically investigated.
+Sensor Configuration. Sensor configurations has been proven important in the design of percep- tion systems. performance (Joshi & Boyd, 2008; Xu et al., 2022). Despite being relatively new in autonomous driving research (Liu et al., 2019), sensor placement has gained significant attention. For instance, Hu et al. (2022) were the firstto explore multi-LiDAR setups for improving 3D object detection, and Li et al. (2024) studied how combining LiDAR and cameras impacts multi-modal de- tection systems. Several other studies (Jin et al., 2022; Kim et al., 2023; Cai et al., 2023; Jiang et al., 2023b) focused on the strategic positioning of roadside LiDAR sensors for vehicle-to-everything (V2X) communication, shifting away from in-vehicle sensor placements. Although many efforts have aimed to refine sensor configurations for better performance, the challenge of adapting per- ception models to different sensor setups has been largely overlooked. Our research is the first to explore the generalization of driving perception models across diverse camera configurations.
+3	 UNIDRIVE
+3.1 PROBLEM FORMULATION
+In real-world multi-camera driving systems, perception models are typically trained on a specific camera configuration with fixed intrinsic and extrinsic parameters. However, the performance of these models often deteriorates when applied to new camera configurations,where the cameras may have different placements, orientations, or intrinsic properties.
+Perception Across Multi-camera Configurations. Given a set of cameras C= {C1,C ,...,CJ }, each characterized by its intrinsic matrix KCj ∈R3×3 and extrinsic matrix ECj ∈R4×42, where j ∈
+{1,2,...,J } and J is the number of cameras. The images captured by these cameras are denoted
+as ICj ∈ RH Cj ×W Cj ×3, where H Cj and WCj are the height and width of the image ICj . When deploying the model trained on {C ,C ,...,C } to a new set of cameras {C′ ,C′ ,...,C ′ } with
+1 2 J 1 2 J ′
+differentcameranumbersandintrinsicandextrinsicparameters,themodelmaynolongereffectively understand the 3D scene due to the differences between the training and testing configurations.
+Universal Multi-camera Representation. To address the transferability of learned models across camera configurations, we attempt to design a universal representation, which transforms images from different camera configurations to a unified space before input to the deep learning network. Toachievethis,weproposeaVirtualCameraProjection approach,whichre-projectstheviewsICj from the original cameras C= {C1,C2,...,CJ } into a unifiedset of virtual camera configurations
+where dVk = uVk − cVk ,vVk − cVk ,f Vk .
+x y y
+Plug-and-Play Virtual Camera Projection Module Optimization
+OptimizingVirtual 
+Mapto Ground-aware  Configurations True 3D Original View Depth Assumption Virtual 3D  Bounding Box
+Bounding Box
+Project  Train 
+Iterative 
+a) VDirsiivoinn-gb Sasyesdt em b) VPrirotjueactl Cionamera  c) VPeisricoenp-btiaosne Md  odel Optimization
+Camera Cross-configuration Parameters Deploy
+  CARLA
+e) Multi-camera  f) VisionData d) Minimizing 
+Configuration Synthesis Projection Error
+Figure 2: Overview of UniDrive framework. We transform the input images into a unifiedvirtual camera space to achieve universal driving perception. To estimate the depth of pixels in the virtual view for projection, we propose a ground-aware depth assumption strategy. To obtain the most effective virtual camera space for multiple real camera configurations, we propose a data-driven CMA-ES (Hansen, 2016) based optimization strategy. To evaluate the efficacy of our framework, we propose an automatic data generation platform in CARLA (Dosovitskiy et al., 2017).
+V = {V1,V2,...,VK }, where K is the number of virtual cameras. The image is represented as IPoint-wise Projection. Once the 3D coordinates (Xc k ,YVk ,Zc k ) in the virtual camera frame
+V V
+are calculated, we transform the point into the world coordinate system with extrinsic matrix EVk ,
+k ∈RH Vk ×W Vk ×3, where H Vk and WVK are the image sizes, and k ∈ {1,2,...,K } indexes the virtual camera views. We denote KVk and EVk as the intrinsic and extrinsic matrices for the virtual camera Vk. This virtual configuration serves as a standardized coordinate system for both training and inference, allowing the model to operate consistently across different physical camera setups.
+3.2 VIRTUAL CAMERA PROJECTION
+In this subsection, we explain the Virtual Camera Projection method to project points from mul- tiple camera views onto virtual camera views using a combination of ground and cylindrical sur- face assumptions, as shown in Figure 2. The goal is to learn a transformation function TV←C that maps the images from the original cameras C = {C1,C2,...,CJ } to the virtual cameras V = {V1,V2,...,VK } with minimum errors.
+Ground-aware Assumption. For each pixel at coordinates (uVk ,vVk ) in the virtual view, its 3D coordinatesinthevirtualcameraframe(X Vk ,YVk ,Z Vk ) arecalculatedbasedonthepixel’sposition
+c c c
+in the image and the depth assumptions. Let the camera height be hc, the focal lengths of the camera be fxVk and fy k , and the principal point (image center) be (cVx k ,cy k ). We first project all pixels to
+V V
+the ground plane to compute the initial assumption of 3D coordinates in virtual camera frame as,
+Xˆ Vk = (uVk − cVx k ) ·hc Yˆ Vk = h , ZˆVk = hc . (1)
+c (vVk − cVy k )/fyVk , c c c (vVk − cy k )/fyVk
+V
+The Euclidean distance to optical center is computed as Dˆ Vk = Xˆ Vk ,Yˆ Vk ,ZˆVk . Then we compare the distance Dˆ c k with threshold D0, if Dˆ c k < D0,cthe points connectedc toc corresponding
+c
+V V
+pixels in the images are assumed on the ground, (X Vk ,YVk ,Z Vk ) = (Xˆ Vk ,Yˆ Vk ,ZˆVk ). If Dˆ Vk ≥
+c c c c c c c D0, we assume that the points lie on a cylindrical-like surface at a fixed distance D0 from the
+camera’s optical center. In this case, the 3D coordinates are computed as:
+X V = (uVk − cVx k ) ·D0 , YV = (vVk − cVy k ) ·D0 , Z V = fyVk ·D0 , (2)
+c k dVk c k dVk c k dVk
+pthetransformusingpointw =virtualbacktheEVkinthecamera’·vontopersepointk ,theofwheresthefromoriginalframe,originalpthekand=camera’world(camera’pX ∈coordinates,YR2Ds extrinsicimageksystemplanematrix⊤ intousingp thej its=originalEintrinsicj −1camera’·pmatrix,w s coordinate(uCj ,vCj ,system1)⊤ =
+V V V V V
+c c c k c k ,Zc ,1) is the homogeneous coordinate of the point in 4 is the 3D point in the world coordinate system. Next, we
+w
+Cc C . Finally, we project the KCj · pCc j = KCj · ECj −1 · pw. This provides the pixel coordinates (uCj ,vCj ) in the original
+projection transform matrix from (uCj ,vCj ) in the i-th original view to (uVk , kv←VCj (Dˆ cVk ) as the view that correspond to the pixel (uVk ,vVk ) in the virtual view. We denote PV
+k ) based on the Euclidean distance to virtual camera optical center Dˆ Vk .
+c
+Image-level Transformation. The point-wise projection is extended tothe entire image view. For each pixel (uVk ,vVk ) in the k-th virtual view, we compute the corresponding pixel (uCj ,vCj ) in the i-th original view based on the projection matrix PV ←C (Dˆ Vk ). The entire image ICj
+Algorithm 1 Virtual Camera Projection
+1: Input: {Cj ,KCj ,ECj ,ICj }J , {Vk ,KVk ,EVk }Kk=1
+j=1
+2: Output: {IVk }Kk=1
+3: for k = 1,2,...,K do
+4: for (uVk ,vVk ) in IVk
+10:11: endp wc if← EC ·−p1c,kcYVˆccVdoVkk),Z←ˆcVk(X)ˆ, cDVˆkcV,kYˆcusingVk ,ZˆcequationVk ) 1
+5: Compute (Xˆ V
+6: if Dˆ cV < D0c thenk
+k
+7: (XcVk ,Y Vk ,Z
+c
+8: else
+9: Compute (X k ,YcVk ,ZcVk ) using equation 2
+← EVk V , pVc k = (XcVk ,YcVk ,ZcVk )
+Cj j ·p
+12:13: p(uCj ,vCj ) ← KCjw ·pCc j
+14: IVk ←Cj (uVk ,vVk ) ← ICj (uCj ,vCj )
+15: end for
+16: end for
+17: IVk ← W1 Jj=1 wj ·IVk ←Cj using equation 3
+
+k j c
+of the i-th original view is warped into I k ←Cj = T (ICVjk,PVk (Dˆ c k )),
+the virtual view I ←Cj as follows,
+V V where T (I, P) represents ←theCj warping
+function applied to the image ICj using the projection matrix PVk ←C (Dˆ Vk )
+based on the Dˆ Vk . j c
+c
+Blending Multiple Views. Since each
+pixel in a single virtual view may have
+correspondingpixelsfromvariousorig-
+inalview, aftertransformingeachorigi-
+nalviewintothevirtualview, wemerge
+all the transformed images IVk ←Cj to form the final output image IVk . This blending is performed by computing a weighted sum of all the projected views:
+IV = 1 J V ←C = 1 J w · T(IC ,P Dˆ Vk (3)
+k W wj ·I k j W j j Vk ←Cj ( c )),
+j=1 i=1
+where W = J wj is the total weight, and wj is the blending weight for the j-th original
+j=1
+view. The weights can be based on factors such as the angular distance between the original and virtual views, or the proximity of the cameras. We presented the detailed computation process in Algorithm 1.
+3.3 VIRTUAL PROJECTION ERROR
+To evaluate the accuracy of the Virtual Camera Projection method in the context of a 3D object de- tection task, we propose a weighted projection error metric based on angular discrepancies between the virtual and original camera views. This method accounts for both angular deviations and the distance from the camera’s optical center to provide a more robust error evaluation.
+AngleComputation. Givenadrivingscenarioof3Dboundingboxinformation, foreach3Dbound-
+ing box b = {(x ,yn,m,zn,m) }m=1, we firstproject its corner points onto the original camera Cj as thenpixel (un,mCn,mj ,vn,mCj ), using the intrinsic matrix KCj and extrinsic matrix ECj . Then, we
+⊤ 8
+use the inverse of the warping process PV ←C to find the corresponding pixel (uVn,mk ,vn,mVk ) in the virtual camera view V for each corner point.k Wj e compute the pitch angle θVk and yaw angle ϕVk
+k n,m n,m relative to the virtual camera’s optical center:
+V vn,mVk − cVy k Vk uVn,mk − cVxk
+θn,mk = arctan( V ),ϕn,m = arctan( Vk ). (4)
+fy k fx
+ 
+Algorithm 2 Virtual Camera ConfigurationOptimization
+1: Initialize: t ← 0, m(0), σ(0), C(0), Nt, Mt, ∀t ∈ {0,1,2,...,T }
+2: for t = 0,1,2,...,T do
+3: for i = 1 to Nt do
+4: Sample u(it) ∼ N (m(t), (σ(t))2C(t)) from δ-density gird-level candidates
+5: Calculate E(u(it))
+6: end for
+7: Update m(t+1) based on the top Mt best solutions uˆ (it) via equation 7
+8: Update σ(t+1) and C(t+1) via equation 8, equation 9, equation 10, and equation 11 9: end for
+
+Next, for the same corner points, we directly project to the virtual view using KVk and EVk as (uVk ′ ,vVk ′ ). Then the pitch angle θVk ′ and yaw angle ϕVk ′ are
+n,m n,m n,m n,m
+θn,mVk ′ = arctan( vn,mVk ′ − cVy k ),ϕVn,mk ′ = arctan( uVn,mk ′ V−k cVx ). (5)
+k
+fyVk fx
+AnglecameraErrprojectionor Calculation.and=the corresponding− θVk ′ point in=the Vvirtualk − ϕcamera.Vk ′ . WThee useabsolutethe distanceerrorsDin pitch For each corner point, we compute the angular error between the original
+andeachas Dyan,mcornerkw are= point∆θn,mfrom,yn,mVktheθ originaln,mVk . camera’The, ∆weightedϕs opticalerrorϕcenterfor aseacha weight.corner pointThe distanceis then calculatedis computedofas n,mVk n,mVk n,m Vn,mk n,m n,m n,mVk
+V xVk ,z
+En,mVk = Dn,mVk · (∆θn,mVk + ∆ϕVn,mk ). The overall error for a 3D bounding box bn is obtained by
+Vk = 8 E
+summing the weighted errors of its eight corner points Ebn m=1 n,mVk . We sum the projection errors across all 3D bounding boxes bn ∈ Bto compute the total projection error
+N N 8
+E = EbVk = En,mVk . (6)
+n
+n=1 n=1 m=1
+3.4 OPTIMIZING VIRTUAL CAMERA CONFIGURATIONS
+Given a set of multi-camera systems, we aim to design a unified virtual camera configuration that minimizes the reprojection error across all original camera configurations. To achieve this, we adopt theheuristicoptimizationbasedontheCovarianceMatrixAdaptationEvolutionStrategy(CMA-ES) (Hansen, 2016) to findan optimized set of virtual camera configurations.
+Objective Function. Given multiple driving perception systems with varying multi-camera conf- girations indexed by s, the total error across all systems is expressed as Etotal = Ss=1 E(s)(u),
+where u = {Vk,K k ,E k }Kk=1 includes both the intrinsic and extrinsic camera parameters of vir-
+V V
+tual multi-camera framework, K is the total quantity of virtual cameras and S is the total quantity of multi-camera driving systems that share the same perception model. We aim to minimize this error by sampling and updating the virtual camera parameters iteratively through a CMA-ES based optimization method.
+Optimization Method. Our Optimization strategy begins by defining a multivariate normal distri- bution N (m(t),(σ(t))2C(t)), where m(t) represents the mean vector, σ(t) denotes the step size, and C(t) is the covariance matrix at iteration t. The configuration space U is discretized with a density
+δ, and Nt candidate configurations u(it) ∼ N (m(t),(σ(t))2C(t)) are sampled at each iteration t. Initialization begins with the initial mean m(0), step size σ(0), and covariance matrix C(0) = I. The
+updated mean vector m(t+1) is calculated in the subsequent iteration to serve as the new center for the search distribution concerning the virtual camera configuration. The process can be mathemati- cally expressed as:
+Mt
+(t+1) w uˆ (t) (t) (t) (t)
+m = i i , E(uˆ 1 ) ≥ E (uˆ 2 ) ≥ ··· ≥ E (uˆ Mt ) , (7)
+i=1
+   
+(a) 4 × 95◦ (b) 5 × 75◦ (c) 6 × 80◦a (d) 6 × 80◦b
+   
+(e) 6 × 70◦ (f) 6 × 60◦ (g) 8 × 50◦ (h) 5 × 70◦ + 110◦
+Figure 3: Visualized multi-camera configurations. We illustrate the multi-view camera configu- rations used in our study. There configurationsare inspired by practical applications in the industry.
+where Mt is the number of top solutions selected to update m(t+1), and wi are weights determined by solution performance. The evolution path p(t+1)
+mization steps, is updated as: C , which tracks the direction of successful opti-
+p(t+1) = (1 − c ) ·p(t) + 1 − (1 − c )2 · 1 · m(t+1) − m(t) , (8)
+C C C C Mt w2 σ(t)
+i=1 i
+where cC is the learning rate for updating the covariance matrix. The covariance matrix C, which definesthe distribution’s shape for camera configurations,is adjusted at each iteration as follows:
+C(t+1) = (1 − cC)C(t) + cCp(Ct+1)p(Ct+1)T . (9) Similarly, the evolution path for the step size, pσ , is updated, and the global step size σ is then
+adjusted to balance exploration and exploitation:
+1 m(t+1) − m(t)
+p(σt+1) = (1 − cσ )p(σt) + 1 − (1 − cσ )2 · M 2 · σ(t) , (10)
+t w
+i=1 i
+σ(t+1) = σ(t) exp cσ ∥p(σt+1)∥ − 1 , (11)
+dσ E∥N(0, I)∥
+where cσ is the learning rate for updating pσ , and dσ is a normalization factor controlling the adjust- ment rate of the global step size. We presented the detailed optimization process in Algorithm 2.
+4	 EXPERIMENTS
+4.1 BENCHMARK SETUPS
+Data Generation. We generate multi-view image data and 3D objects ground truth in CARLA simulator (Dosovitskiy et al., 2017). We use the maps of Towns 1-6 to collect data. We incorporate 6 classes for 3D object detection, including Car, Bus, Truck, Motorcycle, Bicycle, and Pedestrian. The dataset consists of 500 scenes (20,000 frames) for each camera configuration. We split 250 scenes fortrainingand250scenesforvalidation. OurdatasetisorganizedastheformatofnuScenes(Caesar etal., 2020)and compatibleto the nuscenes-devkit pythonpackageforconvenientprocessing.
+Camera Configurations. We adopt several commonly used camera configurations in automotive practice with various camera quantities, placements and field of views. These configurations are represented in Figure 3. We set all camera resolutions to 1600×900 as nuScenes. Our camera configurations include camera numbers from 4 to 8. For the field of view (FOV) for cameras, we conduct study mainly on 6 cameras with FOV = 60, 70, 80. For the placement, we design two Table 1: Quantitative results of BEVFusion-C for 3D detection across camera configurations.
+The detector is trained on the blue configurations and tested on all configurations directly. We report the mAP (↑) and class-level AP (↑) scores in percentage (%).
+Configurations mAP Car Bus Truck Ped. MotorBic. Configurations mAP Car Bus Truck Ped. MotorBic. 5 × 70◦ + 110◦ 63.9 62.4 58.0 66.5 54.7 68.7 72.9 6 × 60 69.3 68.7 67.4 66.3 62.2 78.4 72.8
+4 × 95◦ 4.9 4.6 5.1 3.8 3.9 3.1 4.2 4 × 95◦ 3.8 4.1 4.3 3.2 4.1 3.3 3.6 5 × 75◦ 7.2 9.5 4.8 6.2 5.1 9.0 8.3 5 × 75◦ 3.4 3.7 2.5 3.1 2.7 4.3 4.2
+6 × 80◦a 8.5 11.7 8.8 8.4 6.1 8.2 7.7 6 × 80◦a 0.6 1.7 0.4 0.5 0.1 0.4 0.6 6 × 80◦b 6.9 10.0 7.2 7.8 5.2 6.1 5.6 6 × 80◦b 0.4 1.4 0.0 0.7 0.0 0.2 0.1
+6 × 70◦ 67.5 65.2 61.2 69.3 57.9 79.5 72.1 6 × 70◦ 8.1 9.6 4.3 6.8 7.1 11.0 10.0 6 × 60◦ 9.2 12.4 7.0 8.0 6.5 11.9 9.4 5 × 70◦ + 110◦ 4.6 4.9 3.0 3.5 3.4 5.4 7.4
+8 × 50◦ 0.5 0.6 0.1 0.9 0.2 0.3 0.6 8 × 50◦ 17.3 18.5 9.9 14.1 16.7 21.2 23.4 6 × 80◦a 66.7 65.4 66.2 63.7 55.8 75.9 72.9 6 × 80◦b 69.1 66.0 65.1 72.1 58.3 78.6 74.2
+4 × 95◦ 3.8 4.3 5.0 3.6 3.2 2.8 3.9 4 × 95◦ 3.5 3.9 4.1 3.3 3.2 2.6 3.7 5 × 75◦ 30.4 31.2 23.4 27.8 28.6 36.9 34.2 5 × 75◦ 29.6 30.3 22.6 27.1 27.9 36.3 33.2
+5 × 70◦ + 110◦ 9.2 10.5 6.5 8.6 7.1 8.8 13.3 6 × 80◦a 63.2 65.5 67.0 66.4 46.7 68.2 65.1 6 × 80◦b 63.3 65.4 63.8 70.9 46.3 68.1 65.4 6 × 60◦ 1.7 2.9 0.5 1.1 0.7 2.3 2.6
+6 × 70◦ 16.4 18.0 9.4 13.3 14.7 22.2 20.6 6 × 70◦ 16.1 17.7 8.3 12.3 14.6 23.7 19.9 6 × 60◦ 1.8 3.3 0.8 1.5 0.6 2.3 2.4 5 × 70◦ + 110◦ 8.9 10.3 5.6 7.5 7.1 9.6 13.4 8 × 50◦ 0.4 0.5 0.0 0.8 0.1 0.1 0.6 8 × 50◦ 0.2 0.4 0.0 0.9 0.3 0.3 0.4
+This document was truncated here because it was created in the Evaluation Mode.
+Evaluation Only. Created with Aspose.Words. Copyright 2003-2024 Aspose Pty Ltd.
+10
