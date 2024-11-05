@@ -1,53 +1,80 @@
 package Huffman;
 
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
-import java.io.IOException;
 import java.util.Scanner;
+import java.io.*;
 
 public class HuffmanTeste {
     public static void main(String[] args) {
         HuffmanTrie huffman;
         Scanner input = new Scanner(System.in);
         String documentos, texto, comprimida, descomprimida, opc, textoInserido;
-        StringBuilder conteudoArquivo = new StringBuilder();
+        StringBuilder conteudoArquivos = new StringBuilder();
+        File pasta;
 
 
         // leitura dos documentos para serem comprimidos
         // o usuario informa o caminho onde se encontra os arquivos
         System.out.println("Inserir documentos: ");
         documentos = input.nextLine();
+        pasta = new File(documentos);
+
+        if (pasta.exists() && pasta.isDirectory()) {
+            System.out.println("Pasta encontrada. Lendo arquivos .txt");
+
+            // lendo apenas os arquivos .txt
+            File[] arquivosTxt = pasta.listFiles((dir, name) -> name.toLowerCase().endsWith(".txt"));
+
+            if (arquivosTxt != null) {
+                for (File arquivo : arquivosTxt) {
+                    // limpando o conteudo antes de ler o novo arquivo
+                    conteudoArquivos.setLength(0);
+
+                    // lendo cada arquivo .txt
+                    try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(arquivo), "UTF-8"))){
+                        String linha;
+
+                        while ((linha = br.readLine()) != null) {
+                            conteudoArquivos.append(linha).append("\n");
+                        }
+
+                        conteudoArquivos.append("\n"); // separador entre arquivos
+
+                        // armazenando o conteudo lido em uma string
+                        //texto = conteudoArquivos.toString();
+
+                        // realizando a compressao do arquivo atual
+
+                        huffman = new HuffmanTrie(conteudoArquivos.toString());
+                        comprimida = huffman.comprime(conteudoArquivos.toString());
+                        descomprimida = huffman.descomprime(comprimida);
+                
+                        System.out.println("Mensagem Comprimida: " + comprimida);
+                        System.out.println("Mensagem Descomprimida: " + descomprimida);
+                        System.out.println(huffman.getHuffmanTable());
+
+
+                        // OBS: COMO SERAO 30 ARQUIVOS, E SE EH PARA SER CRIADO UMA ARVORE DE HUFFMAN PARA CADA UM, DEVE
+                        // SER CRIADO UM VETOR DO TIPO HuffmanTrie de tamanho 30, onde cada posicao sera para um arquivo
+                        
+                        System.out.println("Arquivo " + arquivo.getName() + " lido com sucesso!");
+                    } catch (IOException e) {
+                        System.out.println("Erro ao ler o arquivo: " + arquivo.getName());
+                        e.printStackTrace();
+                    }
+                }
+            } else {
+                System.out.println("Nao foram encontrados arquivos .txt na pasta.");
+            }
+        } else {
+            System.out.println("Erro ao inserir o caminho para leitura dos arquivos.");
+        }
+
         if(documentos != null){
             System.out.println("Documentos inseridos com sucesso!");
         }
 
-        // realizando a leitura dos arquivos .txt
-        // C:/Users/jhona/OneDrive/Faculdade/Trabalho_ED/conveterArquivos/result_arquivo2.txt
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(
-                new FileInputStream(documentos),
-                "UTF-8"))) {
-            String linha;
-            while ((linha = br.readLine()) != null) {
-                conteudoArquivo.append(linha).append("\n");
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        if(conteudoArquivo != null){
-
-        }
-        // armazenando o conteudo lido em uma string
-        texto = conteudoArquivo.toString();
-
-        // realizando a compressao dos arquivos
-        huffman = new HuffmanTrie(texto);
-        comprimida = huffman.comprime(texto);
-        descomprimida = huffman.descomprime(comprimida);
-
-        System.out.println("Mensagem Comprimida: " + comprimida);
-        System.out.println("Mensagem Descomprimida: " + descomprimida);
-        System.out.println(huffman.getHuffmanTable());
+        // armazenando o conteudo lido em uma string. Se for armazenar TODOS os arquivos lidos em uma unica string:
+        //texto = conteudoArquivos.toString();
 
         // usuario escolhe qual funcao de hash ele deseja usar
         System.out.println("Qual função de hashing (divisao/djb2): ");
