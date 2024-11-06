@@ -1,21 +1,27 @@
-package Huffman;
-
+import Huffman.HuffmanTrie;   // importando os codigos que realizam a compactação huffman
+import Hash.*;               // importando os codigos serão a base para a criaçao da tabela hash
 import java.util.Scanner;
+
 import java.io.*;
 
-public class HuffmanTeste {
+public class Main {
     public static void main(String[] args) {
         HuffmanTrie huffman;
+        HashTable tabelaHash = new HashTable<>(30);
+
         Scanner input = new Scanner(System.in);
         String documentos, texto, comprimida, descomprimida, opc, textoInserido;
+
         StringBuilder conteudoArquivos = new StringBuilder();
+
         File pasta;
 
 
         // leitura dos documentos para serem comprimidos
         // o usuario informa o caminho onde se encontra os arquivos
         System.out.println("Inserir documentos: ");
-        documentos = input.nextLine();
+        //documentos = input.nextLine();
+        documentos = "C:/Users/jhona/OneDrive/Faculdade/Trabalho_ED/conveterArquivos";
         pasta = new File(documentos);
 
         if (pasta.exists() && pasta.isDirectory()) {
@@ -40,7 +46,7 @@ public class HuffmanTeste {
                         conteudoArquivos.append("\n"); // separador entre arquivos
 
                         // armazenando o conteudo lido em uma string
-                        //texto = conteudoArquivos.toString();
+                        texto = conteudoArquivos.toString();
 
                         // realizando a compressao do arquivo atual
 
@@ -48,9 +54,12 @@ public class HuffmanTeste {
                         comprimida = huffman.comprime(conteudoArquivos.toString());
                         descomprimida = huffman.descomprime(comprimida);
                 
-                        System.out.println("Mensagem Comprimida: " + comprimida);
-                        System.out.println("Mensagem Descomprimida: " + descomprimida);
-                        System.out.println(huffman.getHuffmanTable());
+                        //System.out.println("Mensagem Comprimida: " + comprimida);
+                        //System.out.println("Mensagem Descomprimida: " + descomprimida);
+                        //System.out.println(huffman.getHuffmanTable());
+
+                        System.out.println("posicao gerada pela funcao hash djb2: " + tabelaHash.hashDJB2(texto));
+                        System.out.println("posicao gerada pela funcao hash divisao: " + tabelaHash.hashDivisao(texto, 31));
 
 
                         // OBS: COMO SERAO 30 ARQUIVOS, E SE EH PARA SER CRIADO UMA ARVORE DE HUFFMAN PARA CADA UM, DEVE
@@ -114,27 +123,5 @@ public class HuffmanTeste {
     }
     // ---------------- FIM DA MAIN -------------------------------
 
-
-
-
-      // primeira funcao hash
-      public int hashDivisao(String texto, int M) {
-        int soma = 0;
-        for (char c : texto.toCharArray()) {
-            soma += (int) c;
-        }
-    return soma % M;
-    }
-
-
-
-    // segunda funcao hash
-    public int hashDJB2(String texto) {
-        long hash = 5381;
-        for (char c : texto.toCharArray()) {
-            hash = ((hash << 5) + hash) + c; // hash * 33 + c
-        }
-        return (int) (hash % Integer.MAX_VALUE);
-    }
 
 }

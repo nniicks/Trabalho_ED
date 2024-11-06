@@ -16,6 +16,24 @@ public class HashTable<K, V> {
         return valor % tamanho;
     }
 
+    // PRIMEIRA FUNCAO DE HASH
+    public int hashDivisao(String texto, int M) {
+        int soma = 0;
+        for (char c : texto.toCharArray()) {
+            soma += (int) c;
+        }
+        return soma % M;
+    }
+
+    // SEGUNDA FUNCAO DE HASH
+    public int hashDJB2(String texto) {
+        long hash = 5381;
+        for (char c : texto.toCharArray()) {
+            hash = ((hash << 5) + hash) + c; // hash * 33 + c
+        }
+        return (int) (hash % Integer.MAX_VALUE);
+    }
+
     // retorta o valor associado a chave na tabela hash
     public LinkedList<V> get(K chave){
         int posicao;
