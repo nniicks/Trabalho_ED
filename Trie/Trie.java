@@ -1,5 +1,7 @@
 package Trie;
 
+import java.util.Map;
+
 public class Trie {
     private final TrieNode root;
 
@@ -40,4 +42,26 @@ public class Trie {
         }
         return true;
     }
+
+
+    // Método para imprimir toda a Trie
+    public void printTrie() {
+        printTrieRecursive(root, "");
+    }
+
+    // Método auxiliar recursivo para imprimir os elementos da Trie
+    private void printTrieRecursive(TrieNode node, String prefix) {
+        // Se o nó é o fim de uma palavra, imprimimos o prefixo
+        if (node.isEndOfWord) {
+            System.out.println(prefix);
+        }
+
+        // Recorre todos os filhos do nó e imprime suas palavras
+        for (Map.Entry<Character, TrieNode> entry : node.children.entrySet()) {
+            char ch = entry.getKey();
+            TrieNode childNode = entry.getValue();
+            printTrieRecursive(childNode, prefix + ch);  // Adiciona o caractere ao prefixo
+        }
+    }
+
 }
