@@ -26,12 +26,12 @@ public class HashTable<K, V> {
     }
 
     // SEGUNDA FUNCAO DE HASH
-    public int hashDJB2(String texto) {
+    public int hashDJB2(String texto, int M) {
         long hash = 5381;
         for (char c : texto.toCharArray()) {
             hash = ((hash << 5) + hash) + c; // hash * 33 + c
         }
-        return (int) (hash % Integer.MAX_VALUE);
+        return (int) (hash % M);
     }
 
     // retorta o valor associado a chave na tabela hash
@@ -116,4 +116,3 @@ public class HashTable<K, V> {
         }
     }
 }
-
